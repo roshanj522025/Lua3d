@@ -19,7 +19,6 @@ import java.io.InputStream;
 public class GameActivity extends AppCompatActivity {
 
     private static final int REQUEST_OPEN_LUA = 1001;
-
     private GameGLSurfaceView glSurfaceView;
     private GameEngine gameEngine;
 
@@ -35,18 +34,21 @@ public class GameActivity extends AppCompatActivity {
             WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
         );
 
+        // Fresh engine each time the Activity is created
+        GameEngine.reset();
         gameEngine = GameEngine.getInstance();
         gameEngine.initialize(this);
 
-        // Queue the bundled demo — it will run as soon as GL surface is ready
-        gameEngine.loadAssetScript("scripts/main.lua");
+        // Register the demo script BEFORE creating the GLSurfaceView.
+        // GameRenderer.onSurfaceCreated will pick it up and run it on the GL thread.
+        gameEngine.setPendingAssetScript("scripts/main.lua");
 
+        // Now create the surface (this kicks off GL initialization)
         glSurfaceView = new GameGLSurfaceView(this, gameEngine);
 
         FrameLayout root = new FrameLayout(this);
         root.addView(glSurfaceView);
 
-        // Small "Open .lua" button in the corner
         Button openBtn = new Button(this);
         openBtn.setText("Open .lua");
         openBtn.setAlpha(0.75f);
@@ -67,9 +69,8 @@ public class GameActivity extends AppCompatActivity {
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
         intent.setType("*/*");
-        intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{
-            "text/plain", "application/octet-stream", "text/x-lua"
-        });
+        intent.putExtra(Intent.EXTRA_MIME_TYPES,
+            new String[]{"text/plain", "application/octet-stream", "text/x-lua"});
         startActivityForResult(intent, REQUEST_OPEN_LUA);
     }
 
@@ -88,8 +89,11 @@ public class GameActivity extends AppCompatActivity {
             byte[] bytes = new byte[is.available()];
             //noinspection ResultOfMethodCallIgnored
             is.read(bytes);
-            String code = new String(bytes);
-            glSurfaceView.queueEvent(() -> gameEngine.loadStringScript(code));
+            final String code = new String(bytes);
+            // Always run script on GL thread
+            glSurfaceView.queueEvent(() ->
+                gameEngine.getLuaEngine().executeString(code)
+            );
         } catch (Exception e) {
             new AlertDialog.Builder(this)
                 .setTitle("Error loading script")

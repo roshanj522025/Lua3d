@@ -22,17 +22,21 @@ public class GameEngine {
     private long lastFrameTime;
     private boolean initialized = false;
     private boolean running = false;
-    private boolean glReady = false;
 
-    // Script to auto-load once GL is ready (set before GL surface created)
-    private String pendingScript = null;
-    private boolean pendingIsAsset = false;
+    // Script to execute once onSurfaceCreated fires (set from UI thread, read on GL thread)
+    private volatile String pendingScript     = null;
+    private volatile boolean pendingIsAsset   = false;
 
     private GameEngine() {}
 
     public static GameEngine getInstance() {
         if (instance == null) instance = new GameEngine();
         return instance;
+    }
+
+    /** Call before re-using the singleton (e.g. Activity recreated). */
+    public static void reset() {
+        instance = null;
     }
 
     public void initialize(Context context) {
@@ -47,18 +51,25 @@ public class GameEngine {
         lastFrameTime = System.nanoTime();
         initialized   = true;
         running       = true;
-
         Log.i(TAG, "Engine initialized.");
     }
 
-    /** Called from GL thread when surface + shader are ready. Runs any pending script. */
+    /** Set the asset script to run on the GL thread after surface is created. */
+    public void setPendingAssetScript(String assetPath) {
+        pendingScript   = assetPath;
+        pendingIsAsset  = true;
+    }
+
+    /**
+     * Called from GameRenderer.onSurfaceCreated() ON THE GL THREAD.
+     * Runs any pending script now that the GL context + shader are ready.
+     */
     public void onGLReady() {
-        glReady = true;
-        Log.i(TAG, "GL ready.");
+        Log.i(TAG, "GL ready. pendingScript=" + pendingScript);
         if (pendingScript != null) {
-            String script = pendingScript;
+            String script  = pendingScript;
             boolean isAsset = pendingIsAsset;
-            pendingScript = null;
+            pendingScript  = null;
             if (isAsset) {
                 luaEngine.executeAssetScript(script);
             } else {
@@ -67,25 +78,7 @@ public class GameEngine {
         }
     }
 
-    /** Queue a script to run (or run immediately if GL is already ready). */
-    public void loadAssetScript(String path) {
-        if (glReady) {
-            luaEngine.executeAssetScript(path);
-        } else {
-            pendingScript = path;
-            pendingIsAsset = true;
-        }
-    }
-
-    public void loadStringScript(String code) {
-        if (glReady) {
-            luaEngine.executeString(code);
-        } else {
-            pendingScript = code;
-            pendingIsAsset = false;
-        }
-    }
-
+    /** Called every frame from GL thread. */
     public void tick() {
         if (!running) return;
 
@@ -95,7 +88,7 @@ public class GameEngine {
         dt = Math.min(dt, 0.05f);
 
         inputManager.update();
-        luaEngine.callGlobalFunction("onUpdate", dt);
+        luaEngine.callGlobalFunction("onUpdate", (double) dt);
         sceneManager.update(dt);
         renderer.render();
     }

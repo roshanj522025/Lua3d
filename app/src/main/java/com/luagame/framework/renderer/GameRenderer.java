@@ -20,7 +20,7 @@ public class GameRenderer implements GLSurfaceView.Renderer {
 
     @Override
     public void onSurfaceCreated(GL10 gl, EGLConfig config) {
-        Log.i(TAG, "GL Surface created");
+        Log.i(TAG, "onSurfaceCreated — building shader + loading script");
 
         GLES30.glClearColor(0.02f, 0.02f, 0.06f, 1.0f);
         GLES30.glEnable(GLES30.GL_DEPTH_TEST);
@@ -28,16 +28,16 @@ public class GameRenderer implements GLSurfaceView.Renderer {
         GLES30.glEnable(GLES30.GL_CULL_FACE);
         GLES30.glCullFace(GLES30.GL_BACK);
 
-        // Build GPU shader program
+        // Build GPU resources (shader etc.) — must be first
         gameEngine.getRenderer().onSurfaceCreated();
 
-        // Signal the engine that GL is ready - script loading will happen after
+        // Now execute the pending script (Mesh GL calls are safe here)
         gameEngine.onGLReady();
     }
 
     @Override
     public void onSurfaceChanged(GL10 gl, int width, int height) {
-        Log.i(TAG, "Surface changed: " + width + "x" + height);
+        Log.i(TAG, "onSurfaceChanged " + width + "x" + height);
         GLES30.glViewport(0, 0, width, height);
         gameEngine.getRenderer().onSurfaceChanged(width, height);
         gameEngine.getLuaEngine().callGlobalFunction("onResize", width, height);
