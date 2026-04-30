@@ -292,7 +292,7 @@ public class LuaEngine {
 
         meshLib.set("sphere", new VarArgFunction() {
             @Override public Varargs invoke(Varargs a) {
-                float radius  = a.optfloat(1, 0.5f);
+                float radius  = (float) a.optdouble(1, 0.5);
                 int   rings   = a.optint(2, 16);
                 int   sectors = a.optint(3, 16);
                 return meshToLua(Mesh.createSphere(radius, rings, sectors));
@@ -301,7 +301,7 @@ public class LuaEngine {
 
         meshLib.set("plane", new VarArgFunction() {
             @Override public Varargs invoke(Varargs a) {
-                float size = a.optfloat(1, 10f);
+                float size = (float) a.optdouble(1, 10.0);
                 return meshToLua(Mesh.createPlane(size));
             }
         });
