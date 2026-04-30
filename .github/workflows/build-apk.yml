@@ -23,6 +23,19 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
+      - name: Validate and fix Gradle wrapper
+        run: |
+          # Check if gradle-wrapper.jar is a real JAR (zip magic bytes: PK)
+          if ! python3 -c "import zipfile; zipfile.ZipFile('gradle/wrapper/gradle-wrapper.jar')" 2>/dev/null; then
+            echo "gradle-wrapper.jar is corrupt or missing. Regenerating..."
+            # Install gradle to regenerate the wrapper
+            sudo apt-get install -y gradle
+            gradle wrapper --gradle-version 8.4 --distribution-type bin
+            echo "Wrapper regenerated successfully."
+          else
+            echo "gradle-wrapper.jar is valid."
+          fi
+
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
