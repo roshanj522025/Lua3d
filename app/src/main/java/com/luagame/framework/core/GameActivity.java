@@ -1,7 +1,5 @@
 package com.luagame.framework.core;
 
-import android.app.Activity;
-import android.app.AlertDialog;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
@@ -10,19 +8,15 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.FrameLayout;
-import android.widget.TextView;
+
+import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.app.AppCompatActivity;
 
 import com.luagame.framework.renderer.GameGLSurfaceView;
-import com.luagame.framework.scripting.LuaEngine;
 
 import java.io.InputStream;
 
-/**
- * Main entry Activity for the Lua Game Framework.
- * Shows a floating "Open Lua Script" button so the user can pick any .lua
- * file from their device.  Falls back to the bundled demo if they dismiss.
- */
-public class GameActivity extends Activity {
+public class GameActivity extends AppCompatActivity {
 
     private static final int REQUEST_OPEN_LUA = 1001;
 
@@ -42,19 +36,16 @@ public class GameActivity extends Activity {
             WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
         );
 
-        // Initialize core engine
         gameEngine = GameEngine.getInstance();
         gameEngine.initialize(this);
 
-        // Create OpenGL surface as the base layer
         glSurfaceView = new GameGLSurfaceView(this, gameEngine);
 
-        // Overlay a small "Open Script" button in the top-right corner
         FrameLayout root = new FrameLayout(this);
         root.addView(glSurfaceView);
 
         Button openBtn = new Button(this);
-        openBtn.setText("📂 Open .lua");
+        openBtn.setText("Open .lua");
         openBtn.setAlpha(0.85f);
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.WRAP_CONTENT,
@@ -68,14 +59,12 @@ public class GameActivity extends Activity {
 
         setContentView(root);
 
-        // Ask user to pick a script, or load the bundled demo
         showLaunchDialog();
     }
 
-    /** Dialog on first launch: open a file or run the bundled demo */
     private void showLaunchDialog() {
         new AlertDialog.Builder(this)
-            .setTitle("LuaGameFramework")
+            .setTitle("Lua3D Engine")
             .setMessage("Open a .lua script from your device, or run the bundled solar-system demo.")
             .setPositiveButton("Open .lua file", (d, w) -> openFilePicker())
             .setNegativeButton("Run demo", (d, w) -> loadBundledDemo())
@@ -83,16 +72,12 @@ public class GameActivity extends Activity {
             .show();
     }
 
-    /** Launch the system file picker filtered to .lua / plain-text files */
     private void openFilePicker() {
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
-        // Accept plain text (covers .lua) and any file as fallback
         intent.setType("*/*");
         intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{
-            "text/plain",
-            "application/octet-stream",
-            "text/x-lua"
+            "text/plain", "application/octet-stream", "text/x-lua"
         });
         startActivityForResult(intent, REQUEST_OPEN_LUA);
     }
@@ -104,13 +89,11 @@ public class GameActivity extends Activity {
             if (resultCode == RESULT_OK && data != null && data.getData() != null) {
                 loadLuaFromUri(data.getData());
             } else {
-                // User cancelled the picker — fall back to bundled demo
                 loadBundledDemo();
             }
         }
     }
 
-    /** Read the picked URI and execute its contents as Lua */
     private void loadLuaFromUri(Uri uri) {
         try (InputStream is = getContentResolver().openInputStream(uri)) {
             if (is == null) throw new Exception("Could not open stream");
@@ -118,7 +101,6 @@ public class GameActivity extends Activity {
             //noinspection ResultOfMethodCallIgnored
             is.read(bytes);
             String code = new String(bytes);
-            // Execute on the GL thread so OpenGL calls are safe
             glSurfaceView.queueEvent(() ->
                 gameEngine.getLuaEngine().executeString(code)
             );
