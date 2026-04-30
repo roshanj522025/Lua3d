@@ -18,15 +18,7 @@ android {
 
     signingConfigs {
         debug {
-            // Uses the default Android debug keystore
-        }
-        release {
-            // In CI, falls back to debug signing if no keystore secrets are set.
-            // Real signing is handled externally via apksigner in the workflow.
-            storeFile     = System.getenv("KEYSTORE_FILE")    ? file(System.getenv("KEYSTORE_FILE"))    : null
-            storePassword = System.getenv("STORE_PASSWORD")   ?: ""
-            keyAlias      = System.getenv("KEY_ALIAS")        ?: ""
-            keyPassword   = System.getenv("KEY_PASSWORD")     ?: ""
+            // Uses default Android debug keystore (~/.android/debug.keystore)
         }
     }
 
@@ -37,10 +29,9 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            // Use debug signing as fallback so assembleRelease always succeeds in CI
-            signingConfig signingConfigs.release.storeFile != null
-                ? signingConfigs.release
-                : signingConfigs.debug
+            // Always sign with debug key in CI; production signing is done
+            // externally via apksigner after download (see workflow)
+            signingConfig signingConfigs.debug
         }
     }
 
@@ -49,8 +40,10 @@ android {
         targetCompatibility JavaVersion.VERSION_1_8
     }
 
+    // viewBinding removed — not used in any source file and was causing
+    // dataBindingMergeDependencyArtifacts to fail with AGP 8.2.2
     buildFeatures {
-        viewBinding true
+        viewBinding false
     }
 
     aaptOptions {
