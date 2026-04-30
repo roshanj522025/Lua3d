@@ -27,7 +27,6 @@ public class GameActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Full-screen, keep screen on
         requestWindowFeature(Window.FEATURE_NO_TITLE);
         getWindow().setFlags(
             WindowManager.LayoutParams.FLAG_FULLSCREEN |
@@ -39,37 +38,29 @@ public class GameActivity extends AppCompatActivity {
         gameEngine = GameEngine.getInstance();
         gameEngine.initialize(this);
 
+        // Queue the bundled demo — it will run as soon as GL surface is ready
+        gameEngine.loadAssetScript("scripts/main.lua");
+
         glSurfaceView = new GameGLSurfaceView(this, gameEngine);
 
         FrameLayout root = new FrameLayout(this);
         root.addView(glSurfaceView);
 
+        // Small "Open .lua" button in the corner
         Button openBtn = new Button(this);
         openBtn.setText("Open .lua");
-        openBtn.setAlpha(0.85f);
+        openBtn.setAlpha(0.75f);
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.WRAP_CONTENT,
             FrameLayout.LayoutParams.WRAP_CONTENT,
             Gravity.TOP | Gravity.END
         );
-        lp.setMargins(0, 32, 32, 0);
+        lp.setMargins(0, 24, 24, 0);
         openBtn.setLayoutParams(lp);
         openBtn.setOnClickListener(v -> openFilePicker());
         root.addView(openBtn);
 
         setContentView(root);
-
-        showLaunchDialog();
-    }
-
-    private void showLaunchDialog() {
-        new AlertDialog.Builder(this)
-            .setTitle("Lua3D Engine")
-            .setMessage("Open a .lua script from your device, or run the bundled solar-system demo.")
-            .setPositiveButton("Open .lua file", (d, w) -> openFilePicker())
-            .setNegativeButton("Run demo", (d, w) -> loadBundledDemo())
-            .setCancelable(false)
-            .show();
     }
 
     private void openFilePicker() {
@@ -85,12 +76,9 @@ public class GameActivity extends AppCompatActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == REQUEST_OPEN_LUA) {
-            if (resultCode == RESULT_OK && data != null && data.getData() != null) {
-                loadLuaFromUri(data.getData());
-            } else {
-                loadBundledDemo();
-            }
+        if (requestCode == REQUEST_OPEN_LUA && resultCode == RESULT_OK
+                && data != null && data.getData() != null) {
+            loadLuaFromUri(data.getData());
         }
     }
 
@@ -101,9 +89,7 @@ public class GameActivity extends AppCompatActivity {
             //noinspection ResultOfMethodCallIgnored
             is.read(bytes);
             String code = new String(bytes);
-            glSurfaceView.queueEvent(() ->
-                gameEngine.getLuaEngine().executeString(code)
-            );
+            glSurfaceView.queueEvent(() -> gameEngine.loadStringScript(code));
         } catch (Exception e) {
             new AlertDialog.Builder(this)
                 .setTitle("Error loading script")
@@ -113,29 +99,7 @@ public class GameActivity extends AppCompatActivity {
         }
     }
 
-    private void loadBundledDemo() {
-        glSurfaceView.queueEvent(() ->
-            gameEngine.getLuaEngine().executeAssetScript("scripts/main.lua")
-        );
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        glSurfaceView.onResume();
-        gameEngine.onResume();
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-        glSurfaceView.onPause();
-        gameEngine.onPause();
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        gameEngine.onDestroy();
-    }
+    @Override protected void onResume()  { super.onResume();  glSurfaceView.onResume();  gameEngine.onResume();  }
+    @Override protected void onPause()   { super.onPause();   glSurfaceView.onPause();   gameEngine.onPause();   }
+    @Override protected void onDestroy() { super.onDestroy(); gameEngine.onDestroy(); }
 }

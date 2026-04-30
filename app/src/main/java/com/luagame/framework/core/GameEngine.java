@@ -8,15 +8,6 @@ import com.luagame.framework.renderer.Renderer;
 import com.luagame.framework.scene.SceneManager;
 import com.luagame.framework.scripting.LuaEngine;
 
-/**
- * Central singleton that owns and coordinates all engine subsystems:
- *  - Lua scripting engine
- *  - Scene/entity graph
- *  - Renderer (OpenGL ES 3.0)
- *  - Input manager
- *
- * The game loop runs on the GL thread via GameRenderer.onDrawFrame().
- */
 public class GameEngine {
 
     private static final String TAG = "GameEngine";
@@ -31,30 +22,27 @@ public class GameEngine {
     private long lastFrameTime;
     private boolean initialized = false;
     private boolean running = false;
+    private boolean glReady = false;
 
-    // ─── Singleton ────────────────────────────────────────────────────────────
+    // Script to auto-load once GL is ready (set before GL surface created)
+    private String pendingScript = null;
+    private boolean pendingIsAsset = false;
 
     private GameEngine() {}
 
     public static GameEngine getInstance() {
-        if (instance == null) {
-            instance = new GameEngine();
-        }
+        if (instance == null) instance = new GameEngine();
         return instance;
     }
-
-    // ─── Lifecycle ────────────────────────────────────────────────────────────
 
     public void initialize(Context context) {
         if (initialized) return;
         this.context = context.getApplicationContext();
 
-        Log.i(TAG, "Initializing LuaGameFramework engine…");
-
-        inputManager  = new InputManager();
-        sceneManager  = new SceneManager();
-        renderer      = new Renderer(sceneManager);
-        luaEngine     = new LuaEngine(this);
+        inputManager = new InputManager();
+        sceneManager = new SceneManager();
+        renderer     = new Renderer(sceneManager);
+        luaEngine    = new LuaEngine(this);
 
         lastFrameTime = System.nanoTime();
         initialized   = true;
@@ -63,30 +51,52 @@ public class GameEngine {
         Log.i(TAG, "Engine initialized.");
     }
 
-    /**
-     * Called every frame from the GL thread.
-     * Computes delta-time, fires Lua update hooks, then renders.
-     */
+    /** Called from GL thread when surface + shader are ready. Runs any pending script. */
+    public void onGLReady() {
+        glReady = true;
+        Log.i(TAG, "GL ready.");
+        if (pendingScript != null) {
+            String script = pendingScript;
+            boolean isAsset = pendingIsAsset;
+            pendingScript = null;
+            if (isAsset) {
+                luaEngine.executeAssetScript(script);
+            } else {
+                luaEngine.executeString(script);
+            }
+        }
+    }
+
+    /** Queue a script to run (or run immediately if GL is already ready). */
+    public void loadAssetScript(String path) {
+        if (glReady) {
+            luaEngine.executeAssetScript(path);
+        } else {
+            pendingScript = path;
+            pendingIsAsset = true;
+        }
+    }
+
+    public void loadStringScript(String code) {
+        if (glReady) {
+            luaEngine.executeString(code);
+        } else {
+            pendingScript = code;
+            pendingIsAsset = false;
+        }
+    }
+
     public void tick() {
         if (!running) return;
 
-        long now   = System.nanoTime();
-        float dt   = (now - lastFrameTime) / 1_000_000_000f;   // seconds
+        long now = System.nanoTime();
+        float dt = (now - lastFrameTime) / 1_000_000_000f;
         lastFrameTime = now;
-
-        // Clamp delta time to avoid spiral-of-death on slow frames
         dt = Math.min(dt, 0.05f);
 
-        // 1. Process input
         inputManager.update();
-
-        // 2. Fire Lua update
         luaEngine.callGlobalFunction("onUpdate", dt);
-
-        // 3. Tick scene graph (transforms, animations)
         sceneManager.update(dt);
-
-        // 4. Render
         renderer.render();
     }
 
@@ -106,11 +116,9 @@ public class GameEngine {
         luaEngine.close();
     }
 
-    // ─── Accessors ────────────────────────────────────────────────────────────
-
-    public Context        getContext()      { return context; }
-    public LuaEngine      getLuaEngine()    { return luaEngine; }
-    public SceneManager   getSceneManager() { return sceneManager; }
-    public Renderer       getRenderer()     { return renderer; }
-    public InputManager   getInputManager() { return inputManager; }
+    public Context      getContext()      { return context;      }
+    public LuaEngine    getLuaEngine()    { return luaEngine;    }
+    public SceneManager getSceneManager() { return sceneManager; }
+    public Renderer     getRenderer()     { return renderer;     }
+    public InputManager getInputManager() { return inputManager; }
 }
