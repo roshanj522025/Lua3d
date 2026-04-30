@@ -23,18 +23,20 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      - name: Validate and fix Gradle wrapper
+      - name: Regenerate Gradle wrapper
         run: |
-          # Check if gradle-wrapper.jar is a real JAR (zip magic bytes: PK)
-          if ! python3 -c "import zipfile; zipfile.ZipFile('gradle/wrapper/gradle-wrapper.jar')" 2>/dev/null; then
-            echo "gradle-wrapper.jar is corrupt or missing. Regenerating..."
-            # Install gradle to regenerate the wrapper
-            sudo apt-get install -y gradle
-            gradle wrapper --gradle-version 8.4 --distribution-type bin
-            echo "Wrapper regenerated successfully."
-          else
-            echo "gradle-wrapper.jar is valid."
-          fi
+          # Remove any potentially corrupt wrapper jar and regenerate with the correct version
+          rm -f gradle/wrapper/gradle-wrapper.jar
+          # ubuntu-latest ships with gradle; use it to regenerate the wrapper jar
+          gradle wrapper --gradle-version 8.4 --distribution-type bin
+          echo "✅ Wrapper regenerated"
+          ls -lh gradle/wrapper/gradle-wrapper.jar
+          python3 -c "
+          import zipfile
+          with zipfile.ZipFile('gradle/wrapper/gradle-wrapper.jar') as z:
+              keys = [n for n in z.namelist() if 'GradleWrapper' in n or 'CommandLine' in n]
+              print('Key classes:', keys)
+          "
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
