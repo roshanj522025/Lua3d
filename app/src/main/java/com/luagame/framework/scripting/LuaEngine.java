@@ -6,7 +6,6 @@ import android.util.Log;
 import com.luagame.framework.core.GameEngine;
 import com.luagame.framework.renderer.Mesh;
 import com.luagame.framework.scene.Camera;
-import com.luagame.framework.scene.SceneManager;
 import com.luagame.framework.scene.SceneNode;
 
 import org.luaj.vm2.Globals;
@@ -24,81 +23,27 @@ import java.io.InputStream;
 public class LuaEngine {
 
     private static final String TAG = "LuaEngine";
-
     private final GameEngine engine;
     private final Globals    globals;
 
     public LuaEngine(GameEngine engine) {
         this.engine  = engine;
         this.globals = JsePlatform.standardGlobals();
+        registerAll();
+        Log.i(TAG, "LuaEngine created.");
+    }
 
+    private void registerAll() {
         registerSceneAPI();
         registerCameraAPI();
         registerInputAPI();
         registerMeshAPI();
         registerLogAPI();
-
-        Log.i(TAG, "Lua engine ready.");
     }
 
-    // ─── Script loading ───────────────────────────────────────────────────────
-
-    /** Load and execute a script from assets, then fire onStart(). */
-    public void executeAssetScript(String assetPath) {
-        AssetManager assets = engine.getContext().getAssets();
-        try (InputStream is = assets.open(assetPath)) {
-            byte[] bytes = new byte[is.available()];
-            //noinspection ResultOfMethodCallIgnored
-            is.read(bytes);
-            globals.load(new String(bytes), "@" + assetPath).call();
-            Log.i(TAG, "Executed: " + assetPath);
-            // Fire onStart now that the script has defined all its functions
-            callGlobalFunction("onStart");
-        } catch (IOException e) {
-            Log.e(TAG, "Could not open asset: " + assetPath, e);
-        } catch (LuaError e) {
-            Log.e(TAG, "Lua error in " + assetPath + ": " + e.getMessage());
-        }
-    }
-
-    /** Execute a raw Lua string, then fire onStart(). */
-    public void executeString(String code) {
-        try {
-            globals.load(code).call();
-            callGlobalFunction("onStart");
-        } catch (LuaError e) {
-            Log.e(TAG, "Lua error: " + e.getMessage());
-        }
-    }
-
-    /** Call a Lua global function with optional arguments. */
-    public void callGlobalFunction(String name, Object... args) {
-        LuaValue fn = globals.get(name);
-        if (fn.isnil() || !fn.isfunction()) return;
-        try {
-            LuaValue[] luaArgs = new LuaValue[args.length];
-            for (int i = 0; i < args.length; i++) {
-                Object a = args[i];
-                if      (a instanceof Float)   luaArgs[i] = LuaValue.valueOf((Float)   a);
-                else if (a instanceof Double)  luaArgs[i] = LuaValue.valueOf((Double)  a);
-                else if (a instanceof Integer) luaArgs[i] = LuaValue.valueOf((Integer) a);
-                else if (a instanceof String)  luaArgs[i] = LuaValue.valueOf((String)  a);
-                else luaArgs[i] = LuaValue.NIL;
-            }
-            fn.invoke(LuaValue.varargsOf(luaArgs));
-        } catch (LuaError e) {
-            Log.e(TAG, "Lua error in " + name + ": " + e.getMessage());
-        }
-    }
-
-    public void close() { /* LuaJ doesn't need explicit cleanup */ }
-
-    /** Re-register the Scene API pointing at a new SceneManager (after GL context reset). */
-    public void resetSceneAPI(com.luagame.framework.scene.SceneManager newSceneManager) {
-        registerSceneAPI();
-    }
-
-    // ─── Scene API ───────────────────────────────────────────────────────────
+    // ── Scene API ────────────────────────────────────────────────────────────
+    // NOTE: always reads engine.getSceneManager() at call-time so it works
+    // even after the SceneManager is replaced on GL context loss.
 
     private void registerSceneAPI() {
         LuaTable scene = new LuaTable();
@@ -106,21 +51,19 @@ public class LuaEngine {
         scene.set("createNode", new OneArgFunction() {
             @Override public LuaValue call(LuaValue name) {
                 SceneNode node = engine.getSceneManager().createNode(name.tojstring());
+                Log.d(TAG, "Scene.createNode: " + name.tojstring());
                 return nodeToLua(node);
             }
         });
-
         scene.set("removeNode", new OneArgFunction() {
             @Override public LuaValue call(LuaValue name) {
-                engine.getSceneManager().removeNode(name.tojstring());
-                return NIL;
+                engine.getSceneManager().removeNode(name.tojstring()); return NIL;
             }
         });
-
         scene.set("getNode", new OneArgFunction() {
             @Override public LuaValue call(LuaValue name) {
-                SceneNode node = engine.getSceneManager().getNode(name.tojstring());
-                return node != null ? nodeToLua(node) : NIL;
+                SceneNode n = engine.getSceneManager().getNode(name.tojstring());
+                return n != null ? nodeToLua(n) : NIL;
             }
         });
 
@@ -133,45 +76,46 @@ public class LuaEngine {
 
         t.set("setPosition", new VarArgFunction() {
             @Override public Varargs invoke(Varargs a) {
-                node.setPosition(a.tofloat(1), a.tofloat(2), a.tofloat(3));
-                return NIL;
+                node.setPosition(a.tofloat(1), a.tofloat(2), a.tofloat(3)); return NIL;
             }
         });
         t.set("setRotation", new VarArgFunction() {
             @Override public Varargs invoke(Varargs a) {
-                node.setRotation(a.tofloat(1), a.tofloat(2), a.tofloat(3));
-                return NIL;
+                node.setRotation(a.tofloat(1), a.tofloat(2), a.tofloat(3)); return NIL;
             }
         });
         t.set("setScale", new VarArgFunction() {
             @Override public Varargs invoke(Varargs a) {
-                node.setScale(a.tofloat(1), a.tofloat(2), a.tofloat(3));
-                return NIL;
+                node.setScale(a.tofloat(1), a.tofloat(2), a.tofloat(3)); return NIL;
             }
         });
         t.set("translate", new VarArgFunction() {
             @Override public Varargs invoke(Varargs a) {
-                node.translate(a.tofloat(1), a.tofloat(2), a.tofloat(3));
-                return NIL;
+                node.translate(a.tofloat(1), a.tofloat(2), a.tofloat(3)); return NIL;
             }
         });
         t.set("rotate", new VarArgFunction() {
             @Override public Varargs invoke(Varargs a) {
-                node.rotate(a.tofloat(1), a.tofloat(2), a.tofloat(3));
-                return NIL;
+                node.rotate(a.tofloat(1), a.tofloat(2), a.tofloat(3)); return NIL;
             }
         });
         t.set("setColor", new VarArgFunction() {
             @Override public Varargs invoke(Varargs a) {
-                node.setColor(a.tofloat(1), a.tofloat(2), a.tofloat(3));
-                return NIL;
+                node.setColor(a.tofloat(1), a.tofloat(2), a.tofloat(3)); return NIL;
             }
         });
         t.set("setMesh", new OneArgFunction() {
-            @Override public LuaValue call(LuaValue meshTable) {
-                if (meshTable instanceof LuaTable) {
-                    Object data = ((LuaTable) meshTable).get("__mesh").touserdata();
-                    if (data instanceof Mesh) node.setMesh((Mesh) data);
+            @Override public LuaValue call(LuaValue v) {
+                if (v instanceof LuaTable) {
+                    Object ud = ((LuaTable)v).get("__mesh").touserdata();
+                    if (ud instanceof Mesh) {
+                        node.setMesh((Mesh) ud);
+                        Log.d(TAG, "setMesh OK on " + node.getName());
+                    } else {
+                        Log.e(TAG, "setMesh: __mesh userdata is null or wrong type");
+                    }
+                } else {
+                    Log.e(TAG, "setMesh: argument is not a table: " + v);
                 }
                 return NIL;
             }
@@ -179,35 +123,34 @@ public class LuaEngine {
         t.set("getPosition", new VarArgFunction() {
             @Override public Varargs invoke(Varargs a) {
                 float[] p = node.getPosition();
-                return LuaValue.varargsOf(
-                    LuaValue.valueOf(p[0]), LuaValue.valueOf(p[1]), LuaValue.valueOf(p[2]));
+                return LuaValue.varargsOf(LuaValue.valueOf(p[0]),LuaValue.valueOf(p[1]),LuaValue.valueOf(p[2]));
             }
         });
-
         return t;
     }
 
-    // ─── Camera API ──────────────────────────────────────────────────────────
+    // ── Camera API ───────────────────────────────────────────────────────────
 
     private void registerCameraAPI() {
         LuaTable cam = new LuaTable();
-        Camera camera = engine.getRenderer().getActiveCamera();
 
         cam.set("setPosition", new VarArgFunction() {
             @Override public Varargs invoke(Varargs a) {
-                camera.setPosition(a.tofloat(1), a.tofloat(2), a.tofloat(3));
+                engine.getRenderer().getActiveCamera()
+                    .setPosition(a.tofloat(1), a.tofloat(2), a.tofloat(3));
                 return NIL;
             }
         });
         cam.set("setTarget", new VarArgFunction() {
             @Override public Varargs invoke(Varargs a) {
-                camera.setTarget(a.tofloat(1), a.tofloat(2), a.tofloat(3));
+                engine.getRenderer().getActiveCamera()
+                    .setTarget(a.tofloat(1), a.tofloat(2), a.tofloat(3));
                 return NIL;
             }
         });
         cam.set("setFov", new OneArgFunction() {
             @Override public LuaValue call(LuaValue v) {
-                camera.setFov(v.tofloat());
+                engine.getRenderer().getActiveCamera().setFov(v.tofloat());
                 return NIL;
             }
         });
@@ -215,19 +158,13 @@ public class LuaEngine {
         globals.set("Camera", cam);
     }
 
-    // ─── Input API ───────────────────────────────────────────────────────────
+    // ── Input API ────────────────────────────────────────────────────────────
 
     private void registerInputAPI() {
         LuaTable input = new LuaTable();
-
         input.set("isTouching", new VarArgFunction() {
             @Override public Varargs invoke(Varargs a) {
                 return LuaValue.valueOf(engine.getInputManager().isTouching());
-            }
-        });
-        input.set("getTouchCount", new VarArgFunction() {
-            @Override public Varargs invoke(Varargs a) {
-                return LuaValue.valueOf(engine.getInputManager().getTouchCount());
             }
         });
         input.set("getSwipeDelta", new VarArgFunction() {
@@ -237,24 +174,17 @@ public class LuaEngine {
                     LuaValue.valueOf(engine.getInputManager().getSwipeDeltaY()));
             }
         });
-        input.set("getPrimaryTouch", new VarArgFunction() {
-            @Override public Varargs invoke(Varargs a) {
-                float[] t = engine.getInputManager().getPrimaryTouch();
-                if (t == null) return NIL;
-                return LuaValue.varargsOf(LuaValue.valueOf(t[0]), LuaValue.valueOf(t[1]));
-            }
-        });
-
         globals.set("Input", input);
     }
 
-    // ─── Mesh API ────────────────────────────────────────────────────────────
+    // ── Mesh API ─────────────────────────────────────────────────────────────
 
     private void registerMeshAPI() {
         LuaTable meshLib = new LuaTable();
 
         meshLib.set("cube", new VarArgFunction() {
             @Override public Varargs invoke(Varargs a) {
+                Log.d(TAG, "Mesh.cube() called");
                 return meshToLua(Mesh.createCube());
             }
         });
@@ -263,12 +193,14 @@ public class LuaEngine {
                 float radius  = (float) a.optdouble(1, 0.5);
                 int   rings   = a.optint(2, 16);
                 int   sectors = a.optint(3, 16);
+                Log.d(TAG, "Mesh.sphere(" + radius + "," + rings + "," + sectors + ")");
                 return meshToLua(Mesh.createSphere(radius, rings, sectors));
             }
         });
         meshLib.set("plane", new VarArgFunction() {
             @Override public Varargs invoke(Varargs a) {
                 float size = (float) a.optdouble(1, 10.0);
+                Log.d(TAG, "Mesh.plane(" + size + ")");
                 return meshToLua(Mesh.createPlane(size));
             }
         });
@@ -282,23 +214,84 @@ public class LuaEngine {
         return t;
     }
 
-    // ─── Log API ─────────────────────────────────────────────────────────────
+    // ── Log API ──────────────────────────────────────────────────────────────
 
     private void registerLogAPI() {
         LuaTable log = new LuaTable();
         log.set("info",  new OneArgFunction() {
-            @Override public LuaValue call(LuaValue msg) { Log.i("Lua", msg.tojstring()); return NIL; }
+            @Override public LuaValue call(LuaValue m) { Log.i("Lua", m.tojstring()); return NIL; }
         });
         log.set("warn",  new OneArgFunction() {
-            @Override public LuaValue call(LuaValue msg) { Log.w("Lua", msg.tojstring()); return NIL; }
+            @Override public LuaValue call(LuaValue m) { Log.w("Lua", m.tojstring()); return NIL; }
         });
         log.set("error", new OneArgFunction() {
-            @Override public LuaValue call(LuaValue msg) { Log.e("Lua", msg.tojstring()); return NIL; }
+            @Override public LuaValue call(LuaValue m) { Log.e("Lua", m.tojstring()); return NIL; }
         });
         globals.set("Log", log);
-
         globals.set("print", new OneArgFunction() {
-            @Override public LuaValue call(LuaValue msg) { Log.d("Lua", msg.tojstring()); return NIL; }
+            @Override public LuaValue call(LuaValue m) { Log.d("Lua", m.tojstring()); return NIL; }
         });
     }
+
+    // ── Script execution ─────────────────────────────────────────────────────
+
+    /** Must be called on GL thread. Loads script and fires onStart(). */
+    public void executeAssetScript(String path) {
+        Log.i(TAG, "executeAssetScript: " + path);
+        AssetManager assets = engine.getContext().getAssets();
+        try (InputStream is = assets.open(path)) {
+            byte[] b = new byte[is.available()];
+            //noinspection ResultOfMethodCallIgnored
+            is.read(b);
+            String code = new String(b);
+            Log.i(TAG, "Script loaded, " + b.length + " bytes. Executing...");
+            globals.load(code, "@" + path).call();
+            Log.i(TAG, "Script executed. Calling onStart()...");
+            callGlobalFunction("onStart");
+            Log.i(TAG, "onStart() done.");
+        } catch (IOException e) {
+            Log.e(TAG, "IOException loading " + path + ": " + e.getMessage());
+        } catch (LuaError e) {
+            Log.e(TAG, "LuaError in " + path + ": " + e.getMessage());
+        }
+    }
+
+    /** Must be called on GL thread. Executes Lua string and fires onStart(). */
+    public void executeString(String code) {
+        Log.i(TAG, "executeString: " + code.length() + " chars");
+        try {
+            globals.load(code).call();
+            callGlobalFunction("onStart");
+        } catch (LuaError e) {
+            Log.e(TAG, "LuaError: " + e.getMessage());
+        }
+    }
+
+    public void callGlobalFunction(String name, Object... args) {
+        LuaValue fn = globals.get(name);
+        if (fn.isnil() || !fn.isfunction()) {
+            Log.w(TAG, "callGlobalFunction: '" + name + "' not defined");
+            return;
+        }
+        try {
+            LuaValue[] luaArgs = new LuaValue[args.length];
+            for (int i = 0; i < args.length; i++) {
+                Object a = args[i];
+                if      (a instanceof Float)   luaArgs[i] = LuaValue.valueOf((Float)   a);
+                else if (a instanceof Double)  luaArgs[i] = LuaValue.valueOf((Double)  a);
+                else if (a instanceof Integer) luaArgs[i] = LuaValue.valueOf((Integer) a);
+                else if (a instanceof String)  luaArgs[i] = LuaValue.valueOf((String)  a);
+                else luaArgs[i] = LuaValue.NIL;
+            }
+            fn.invoke(LuaValue.varargsOf(luaArgs));
+        } catch (LuaError e) {
+            Log.e(TAG, "LuaError in " + name + "(): " + e.getMessage());
+        }
+    }
+
+    public void resetSceneAPI(com.luagame.framework.scene.SceneManager sm) {
+        registerSceneAPI(); // re-registers with fresh lambda closures using engine.getSceneManager()
+    }
+
+    public void close() {}
 }
