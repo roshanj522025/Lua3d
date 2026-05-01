@@ -19,12 +19,17 @@ import org.luaj.vm2.lib.jse.JsePlatform;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.HashMap;
+import java.util.Map;
 
 public class LuaEngine {
 
     private static final String TAG = "LuaEngine";
     private final GameEngine engine;
     private final Globals    globals;
+    // Registry maps integer IDs -> Mesh objects (avoids LuaJ userdata issues)
+    private final Map<Integer, Mesh> meshRegistry = new HashMap<>();
+    private int nextMeshId = 1;
 
     public LuaEngine(GameEngine engine) {
         this.engine  = engine;
@@ -108,18 +113,19 @@ public class LuaEngine {
         t.set("setMesh", new OneArgFunction() {
             @Override public LuaValue call(LuaValue v) {
                 if (v instanceof LuaTable) {
-                    Object ud = ((LuaTable)v).get("__mesh").touserdata();
-                    if (ud instanceof Mesh) {
-                        node.setMesh((Mesh) ud);
-                        Log.d(TAG, "setMesh OK on " + node.getName());
+                    int meshId = ((LuaTable)v).get("__meshId").toint();
+                    Mesh mesh = meshRegistry.get(meshId);
+                    if (mesh != null) {
+                        node.setMesh(mesh);
+                        Log.d(TAG, "setMesh OK on " + node.getName() + " meshId=" + meshId);
                         com.luagame.framework.core.GameActivity.log("[Lua] setMesh OK: " + node.getName());
                     } else {
-                        Log.e(TAG, "setMesh: __mesh userdata is null: " + ud);
-                        com.luagame.framework.core.GameActivity.log("[Lua] setMesh FAIL: ud=" + ud);
+                        Log.e(TAG, "setMesh: meshId=" + meshId + " not found in registry");
+                        com.luagame.framework.core.GameActivity.log("[Lua] setMesh FAIL: meshId=" + meshId + " not in registry");
                     }
                 } else {
-                    Log.e(TAG, "setMesh: not a table: " + v.getClass());
-                    com.luagame.framework.core.GameActivity.log("[Lua] setMesh FAIL: not table: " + v);
+                    Log.e(TAG, "setMesh: not a table: " + v);
+                    com.luagame.framework.core.GameActivity.log("[Lua] setMesh FAIL: not table");
                 }
                 return NIL;
             }
@@ -213,8 +219,10 @@ public class LuaEngine {
     }
 
     private LuaTable meshToLua(Mesh mesh) {
+        int id = nextMeshId++;
+        meshRegistry.put(id, mesh);
         LuaTable t = new LuaTable();
-        t.set("__mesh", LuaValue.userdataOf(mesh));
+        t.set("__meshId", LuaValue.valueOf(id));
         return t;
     }
 
