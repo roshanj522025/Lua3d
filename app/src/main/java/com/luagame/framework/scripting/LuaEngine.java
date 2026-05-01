@@ -238,21 +238,27 @@ public class LuaEngine {
     /** Must be called on GL thread. Loads script and fires onStart(). */
     public void executeAssetScript(String path) {
         Log.i(TAG, "executeAssetScript: " + path);
+        com.luagame.framework.core.GameActivity.log("[Lua] Loading: " + path);
         AssetManager assets = engine.getContext().getAssets();
         try (InputStream is = assets.open(path)) {
             byte[] b = new byte[is.available()];
             //noinspection ResultOfMethodCallIgnored
             is.read(b);
             String code = new String(b);
-            Log.i(TAG, "Script loaded, " + b.length + " bytes. Executing...");
+            Log.i(TAG, "Script loaded, " + b.length + " bytes.");
+            com.luagame.framework.core.GameActivity.log("[Lua] Script " + b.length + " bytes, executing...");
             globals.load(code, "@" + path).call();
-            Log.i(TAG, "Script executed. Calling onStart()...");
+            Log.i(TAG, "Script executed.");
+            com.luagame.framework.core.GameActivity.log("[Lua] Script executed, calling onStart()...");
             callGlobalFunction("onStart");
             Log.i(TAG, "onStart() done.");
+            com.luagame.framework.core.GameActivity.log("[Lua] onStart() complete!");
         } catch (IOException e) {
-            Log.e(TAG, "IOException loading " + path + ": " + e.getMessage());
+            Log.e(TAG, "IOException: " + e.getMessage());
+        com.luagame.framework.core.GameActivity.log("[Lua] ERROR IOException: " + e.getMessage());
         } catch (LuaError e) {
-            Log.e(TAG, "LuaError in " + path + ": " + e.getMessage());
+            Log.e(TAG, "LuaError: " + e.getMessage());
+        com.luagame.framework.core.GameActivity.log("[Lua] ERROR: " + e.getMessage());
         }
     }
 
