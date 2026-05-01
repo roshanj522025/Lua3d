@@ -70,6 +70,8 @@ public class Mesh {
         GLES30.glBufferData(GLES30.GL_ELEMENT_ARRAY_BUFFER, indices.length * 2, ib, GLES30.GL_STATIC_DRAW);
 
         GLES30.glBindVertexArray(0);
+        android.util.Log.i("Mesh", "uploadToGPU: vao=" + vao + " vbo=" + vbo + " indices=" + indexCount);
+        com.luagame.framework.core.GameActivity.log("[Mesh] Created vao=" + vao + " indices=" + indexCount);
     }
 
     public void draw() {

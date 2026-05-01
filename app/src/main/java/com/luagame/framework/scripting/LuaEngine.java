@@ -52,6 +52,7 @@ public class LuaEngine {
             @Override public LuaValue call(LuaValue name) {
                 SceneNode node = engine.getSceneManager().createNode(name.tojstring());
                 Log.d(TAG, "Scene.createNode: " + name.tojstring());
+                com.luagame.framework.core.GameActivity.log("[Lua] createNode: " + name.tojstring());
                 return nodeToLua(node);
             }
         });
@@ -111,11 +112,14 @@ public class LuaEngine {
                     if (ud instanceof Mesh) {
                         node.setMesh((Mesh) ud);
                         Log.d(TAG, "setMesh OK on " + node.getName());
+                        com.luagame.framework.core.GameActivity.log("[Lua] setMesh OK: " + node.getName());
                     } else {
-                        Log.e(TAG, "setMesh: __mesh userdata is null or wrong type");
+                        Log.e(TAG, "setMesh: __mesh userdata is null: " + ud);
+                        com.luagame.framework.core.GameActivity.log("[Lua] setMesh FAIL: ud=" + ud);
                     }
                 } else {
-                    Log.e(TAG, "setMesh: argument is not a table: " + v);
+                    Log.e(TAG, "setMesh: not a table: " + v.getClass());
+                    com.luagame.framework.core.GameActivity.log("[Lua] setMesh FAIL: not table: " + v);
                 }
                 return NIL;
             }
