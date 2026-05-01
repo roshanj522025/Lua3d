@@ -23,20 +23,15 @@ public class GameEngine {
     private boolean initialized = false;
     private boolean running = false;
 
-    // Script to execute once onSurfaceCreated fires (set from UI thread, read on GL thread)
-    private volatile String pendingScript     = null;
-    private volatile boolean pendingIsAsset   = false;
+    // Script queued to run on the GL thread once surface is ready
+    private volatile String pendingScript   = null;
+    private volatile boolean pendingIsAsset = false;
 
     private GameEngine() {}
 
     public static GameEngine getInstance() {
         if (instance == null) instance = new GameEngine();
         return instance;
-    }
-
-    /** Call before re-using the singleton (e.g. Activity recreated). */
-    public static void reset() {
-        instance = null;
     }
 
     public void initialize(Context context) {
@@ -54,22 +49,40 @@ public class GameEngine {
         Log.i(TAG, "Engine initialized.");
     }
 
-    /** Set the asset script to run on the GL thread after surface is created. */
-    public void setPendingAssetScript(String assetPath) {
-        pendingScript   = assetPath;
+    /**
+     * Queue a script to run once the GL surface is ready.
+     * Safe to call from any thread at any time.
+     * The actual execution always happens on the GL thread via onGLReady().
+     */
+    public void queueAssetScript(String path) {
+        pendingScript   = path;
         pendingIsAsset  = true;
+        Log.i(TAG, "Script queued: " + path);
+    }
+
+    public void queueStringScript(String code) {
+        pendingScript   = code;
+        pendingIsAsset  = false;
     }
 
     /**
-     * Called from GameRenderer.onSurfaceCreated() ON THE GL THREAD.
-     * Runs any pending script now that the GL context + shader are ready.
+     * Called from the GL thread inside onSurfaceCreated(), after the shader is built.
+     * Resets GL-dependent state and runs any pending script.
      */
     public void onGLReady() {
-        Log.i(TAG, "GL ready. pendingScript=" + pendingScript);
+        // Reset scene — old VAOs/VBOs from previous GL context are gone
+        sceneManager = new SceneManager();
+        renderer.setSceneManager(sceneManager);
+        luaEngine.resetSceneAPI(sceneManager);
+
+        lastFrameTime = System.nanoTime();
+        running = true;
+        Log.i(TAG, "GL ready. Running pending script: " + pendingScript);
+
         if (pendingScript != null) {
             String script  = pendingScript;
             boolean isAsset = pendingIsAsset;
-            pendingScript  = null;
+            // Don't clear pendingScript — keep it so surface re-creation re-runs it
             if (isAsset) {
                 luaEngine.executeAssetScript(script);
             } else {
@@ -78,7 +91,7 @@ public class GameEngine {
         }
     }
 
-    /** Called every frame from GL thread. */
+    /** Called every frame on the GL thread. */
     public void tick() {
         if (!running) return;
 
@@ -88,7 +101,7 @@ public class GameEngine {
         dt = Math.min(dt, 0.05f);
 
         inputManager.update();
-        luaEngine.callGlobalFunction("onUpdate", (double) dt);
+        luaEngine.callGlobalFunction("onUpdate", (Object) dt);
         sceneManager.update(dt);
         renderer.render();
     }
@@ -96,17 +109,14 @@ public class GameEngine {
     public void onResume() {
         running = true;
         lastFrameTime = System.nanoTime();
-        luaEngine.callGlobalFunction("onResume");
     }
 
     public void onPause() {
         running = false;
-        luaEngine.callGlobalFunction("onPause");
     }
 
     public void onDestroy() {
         running = false;
-        luaEngine.close();
     }
 
     public Context      getContext()      { return context;      }

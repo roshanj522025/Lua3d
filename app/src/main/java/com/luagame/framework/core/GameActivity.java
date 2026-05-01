@@ -34,16 +34,12 @@ public class GameActivity extends AppCompatActivity {
             WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
         );
 
-        // Fresh engine each time the Activity is created
-        GameEngine.reset();
         gameEngine = GameEngine.getInstance();
         gameEngine.initialize(this);
 
-        // Register the demo script BEFORE creating the GLSurfaceView.
-        // GameRenderer.onSurfaceCreated will pick it up and run it on the GL thread.
-        gameEngine.setPendingAssetScript("scripts/main.lua");
+        // Queue the bundled demo — will execute on GL thread in onSurfaceCreated
+        gameEngine.queueAssetScript("scripts/main.lua");
 
-        // Now create the surface (this kicks off GL initialization)
         glSurfaceView = new GameGLSurfaceView(this, gameEngine);
 
         FrameLayout root = new FrameLayout(this);
@@ -90,13 +86,14 @@ public class GameActivity extends AppCompatActivity {
             //noinspection ResultOfMethodCallIgnored
             is.read(bytes);
             final String code = new String(bytes);
-            // Always run script on GL thread
-            glSurfaceView.queueEvent(() ->
-                gameEngine.getLuaEngine().executeString(code)
-            );
+            // Queue and re-trigger on GL thread
+            glSurfaceView.queueEvent(() -> {
+                gameEngine.queueStringScript(code);
+                gameEngine.onGLReady();
+            });
         } catch (Exception e) {
             new AlertDialog.Builder(this)
-                .setTitle("Error loading script")
+                .setTitle("Error")
                 .setMessage(e.getMessage())
                 .setPositiveButton("OK", null)
                 .show();

@@ -20,19 +20,22 @@ public class GameRenderer implements GLSurfaceView.Renderer {
 
     @Override
     public void onSurfaceCreated(GL10 gl, EGLConfig config) {
-        Log.i(TAG, "onSurfaceCreated — building shader + loading script");
+        Log.i(TAG, "onSurfaceCreated — GL thread");
 
-        GLES30.glClearColor(0.02f, 0.02f, 0.06f, 1.0f);
+        // Deep blue background
+        GLES30.glClearColor(0.01f, 0.01f, 0.05f, 1.0f);
         GLES30.glEnable(GLES30.GL_DEPTH_TEST);
         GLES30.glDepthFunc(GLES30.GL_LEQUAL);
         GLES30.glEnable(GLES30.GL_CULL_FACE);
         GLES30.glCullFace(GLES30.GL_BACK);
 
-        // Build GPU resources (shader etc.) — must be first
+        // (Re)compile shaders on GL thread
         gameEngine.getRenderer().onSurfaceCreated();
 
-        // Now execute the pending script (Mesh GL calls are safe here)
+        // Load script and call onStart() — all on GL thread, correct!
         gameEngine.onGLReady();
+
+        Log.i(TAG, "onSurfaceCreated complete");
     }
 
     @Override

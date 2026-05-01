@@ -93,6 +93,11 @@ public class LuaEngine {
 
     public void close() { /* LuaJ doesn't need explicit cleanup */ }
 
+    /** Re-register the Scene API pointing at a new SceneManager (after GL context reset). */
+    public void resetSceneAPI(com.luagame.framework.scene.SceneManager newSceneManager) {
+        registerSceneAPI();
+    }
+
     // ─── Scene API ───────────────────────────────────────────────────────────
 
     private void registerSceneAPI() {
