@@ -82,38 +82,40 @@ public class LuaEngine {
 
         t.set("setPosition", new VarArgFunction() {
             @Override public Varargs invoke(Varargs a) {
-                node.setPosition(a.tofloat(1), a.tofloat(2), a.tofloat(3)); return NIL;
+                node.setPosition(a.tofloat(2), a.tofloat(3), a.tofloat(4)); return NIL;
             }
         });
         t.set("setRotation", new VarArgFunction() {
             @Override public Varargs invoke(Varargs a) {
-                node.setRotation(a.tofloat(1), a.tofloat(2), a.tofloat(3)); return NIL;
+                node.setRotation(a.tofloat(2), a.tofloat(3), a.tofloat(4)); return NIL;
             }
         });
         t.set("setScale", new VarArgFunction() {
             @Override public Varargs invoke(Varargs a) {
-                node.setScale(a.tofloat(1), a.tofloat(2), a.tofloat(3)); return NIL;
+                node.setScale(a.tofloat(2), a.tofloat(3), a.tofloat(4)); return NIL;
             }
         });
         t.set("translate", new VarArgFunction() {
             @Override public Varargs invoke(Varargs a) {
-                node.translate(a.tofloat(1), a.tofloat(2), a.tofloat(3)); return NIL;
+                node.translate(a.tofloat(2), a.tofloat(3), a.tofloat(4)); return NIL;
             }
         });
         t.set("rotate", new VarArgFunction() {
             @Override public Varargs invoke(Varargs a) {
-                node.rotate(a.tofloat(1), a.tofloat(2), a.tofloat(3)); return NIL;
+                node.rotate(a.tofloat(2), a.tofloat(3), a.tofloat(4)); return NIL;
             }
         });
         t.set("setColor", new VarArgFunction() {
             @Override public Varargs invoke(Varargs a) {
-                node.setColor(a.tofloat(1), a.tofloat(2), a.tofloat(3)); return NIL;
+                node.setColor(a.tofloat(2), a.tofloat(3), a.tofloat(4)); return NIL;
             }
         });
-        t.set("setMesh", new OneArgFunction() {
-            @Override public LuaValue call(LuaValue v) {
+        t.set("setMesh", new VarArgFunction() {
+            @Override public Varargs invoke(Varargs a) {
+                // box:setMesh(mesh) — colon syntax passes self as a.arg(1), mesh as a.arg(2)
+                LuaValue v = a.arg(2);
                 if (v instanceof LuaTable) {
-                    int meshId = ((LuaTable)v).get("__meshId").toint();
+                    int meshId = ((LuaTable) v).get("__meshId").toint();
                     Mesh mesh = meshRegistry.get(meshId);
                     if (mesh != null) {
                         node.setMesh(mesh);
@@ -124,8 +126,8 @@ public class LuaEngine {
                         com.luagame.framework.core.GameActivity.log("[Lua] setMesh FAIL: meshId=" + meshId + " not in registry");
                     }
                 } else {
-                    Log.e(TAG, "setMesh: not a table: " + v);
-                    com.luagame.framework.core.GameActivity.log("[Lua] setMesh FAIL: not table");
+                    Log.e(TAG, "setMesh: expected mesh table at arg2, got: " + v);
+                    com.luagame.framework.core.GameActivity.log("[Lua] setMesh FAIL: bad arg=" + v);
                 }
                 return NIL;
             }
