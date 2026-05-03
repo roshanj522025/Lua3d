@@ -4,7 +4,18 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+
+    <!-- Deep space gradient background using layered circles -->
     <path
-        android:fillColor="#1A1A2E"
-        android:pathData="M0,0h108v108h-108z" />
+        android:fillColor="#0A0A1A"
+        android:pathData="M0,0 L108,0 L108,108 L0,108 Z"/>
+
+    <!-- Subtle radial glow at center -->
+    <path
+        android:fillColor="#12122E"
+        android:pathData="M54,54 m-45,0 a45,45 0,1,1 90,0 a45,45 0,1,1 -90,0"/>
+    <path
+        android:fillColor="#1A1A3E"
+        android:pathData="M54,54 m-30,0 a30,30 0,1,1 60,0 a30,30 0,1,1 -60,0"/>
+
 </vector>

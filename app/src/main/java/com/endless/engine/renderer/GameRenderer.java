@@ -1,10 +1,10 @@
-package com.luagame.framework.renderer;
+package com.endless.engine.renderer;
 
 import android.opengl.GLES30;
 import android.opengl.GLSurfaceView;
 
-import com.luagame.framework.core.GameActivity;
-import com.luagame.framework.core.GameEngine;
+import com.endless.engine.core.GameActivity;
+import com.endless.engine.core.GameEngine;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;

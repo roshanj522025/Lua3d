@@ -1,8 +1,9 @@
-package com.luagame.framework.scene;
+package com.endless.engine.scene;
 
 import android.opengl.Matrix;
 
-import com.luagame.framework.renderer.Mesh;
+import com.endless.engine.renderer.Mesh;
+import com.endless.engine.renderer.Texture;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -23,7 +24,8 @@ public class SceneNode {
 
     // Rendering
     private Mesh  mesh;
-    private float[] color = { 1f, 1f, 1f };      // RGB
+    private float[] color = { 1f, 1f, 1f };
+    private Texture texture = null;
 
     // Hierarchy
     private SceneNode          parent;
@@ -122,6 +124,9 @@ public class SceneNode {
     public void setMesh(Mesh mesh)          { this.mesh = mesh; }
     public void setColor(float r, float g, float b) { color[0]=r; color[1]=g; color[2]=b; }
     public void setUserData(Object data)    { this.userData = data; }
+
+    public Texture getTexture()   { return texture; }
+    public void setTexture(Texture t) { this.texture = t; }
 
     public float[] getPosition() { return position.clone(); }
     public float[] getRotation() { return rotation.clone(); }

@@ -1,4 +1,4 @@
-package com.luagame.framework.core;
+package com.endless.engine.core;
 
 import android.content.Intent;
 import android.graphics.Color;
@@ -17,7 +17,7 @@ import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.luagame.framework.renderer.GameGLSurfaceView;
+import com.endless.engine.renderer.GameGLSurfaceView;
 
 import java.io.InputStream;
 import java.util.ArrayList;

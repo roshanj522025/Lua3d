@@ -1,4 +1,4 @@
-package com.luagame.framework.scene;
+package com.endless.engine.scene;
 
 import android.opengl.Matrix;
 

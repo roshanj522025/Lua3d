@@ -1,10 +1,10 @@
-package com.luagame.framework.renderer;
+package com.endless.engine.renderer;
 
 import android.content.Context;
 import android.opengl.GLSurfaceView;
 import android.view.MotionEvent;
 
-import com.luagame.framework.core.GameEngine;
+import com.endless.engine.core.GameEngine;
 
 public class GameGLSurfaceView extends GLSurfaceView {
 
